@@ -109,6 +109,4 @@ export const authOptions: NextAuthOptions = {
 };
 
 const handler = NextAuth(authOptions);
-
-// Export only the handlers GET and POST, removing any invalid exports
 export { handler as GET, handler as POST };
