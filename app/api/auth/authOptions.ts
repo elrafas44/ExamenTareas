@@ -3,7 +3,6 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaClient } from "@prisma/client";
 import { compare } from "bcryptjs";
 
-// Configuración Singleton para Prisma
 const prismaClientSingleton = () => {
   return new PrismaClient();
 };
@@ -24,41 +23,28 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        try {
-          if (!credentials?.email || !credentials.password) {
-            throw new Error("Email y contraseña son requeridos");
-          }
-          const user = await prisma.user.findUnique({
-            where: { email: credentials.email },
-          });
-          if (!user) {
-            throw new Error("Usuario no encontrado");
-          }
-          if (!user.password) {
-            throw new Error("El usuario no tiene contraseña registrada");
-          }
-          const isValid = await compare(credentials.password, user.password);
-          if (!isValid) {
-            throw new Error("Contraseña incorrecta");
-          }
-          return {
-            id: user.id.toString(),
-            email: user.email,
-            name: user.email
-          };
-        } catch (error) {
-          return null;
+        if (!credentials?.email || !credentials.password) {
+          throw new Error("Email y contraseña son requeridos");
         }
-      }
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
+        });
+        if (!user || !user.password) {
+          throw new Error("Usuario no encontrado o sin contraseña");
+        }
+        const isValid = await compare(credentials.password, user.password);
+        if (!isValid) {
+          throw new Error("Contraseña incorrecta");
+        }
+        return { id: user.id.toString(), email: user.email, name: user.email };
+      },
     }),
   ],
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 días de duración de sesión
+    maxAge: 30 * 24 * 60 * 60,
   },
-  pages: {
-    signIn: "/login",
-  },
+  secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -73,7 +59,7 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string;
       }
       return session;
-    }
+    },
   },
   debug: process.env.NODE_ENV !== "production",
 };
